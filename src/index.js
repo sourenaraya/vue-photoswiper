@@ -24,57 +24,55 @@ var vuePhotoPreview = {
 }
 /* eslint-disable */
 function initPhotoSwipeFromDOM(galleryElement, opts = {}, group) {
-
 	var parseThumbnailElements = function(thumbElements) {
-		var items = [],
-			el,
-			load = 0,
-			item;
-		item = {}
-		for (var i = 0; i < thumbElements.length; i++) {
-			el = thumbElements[i];
+        var numNodes = thumbElements.length,
+            items = [],
+            figureEl,
+            linkEl,
+            size,
+            item;
 
-			// include only element nodes 
-			if (el.nodeType !== 1) {
-				continue;
-			}
+        for(var i = 0; i < numNodes; i++) {
+
+            figureEl = thumbElements[i]; // <figure> element
+
+            // include only element nodes
+            if(figureEl.nodeType !== 1) {
+                continue;
+            }
+
+            linkEl = figureEl.children[0]; // <a> element
+
+            size = linkEl.getAttribute('data-size').split('x');
+
+            // create slide object
+            item = {
+                src: linkEl.getAttribute('href'),
+                w: parseInt(size[0], 10),
+                h: parseInt(size[1], 10)
+            };
 
 
-			if (typeof el.naturalWidth == "undefined") {　　 // IE 6/7/8
-				　　
-				var i = new Image();　　
-				i.src = el.src;　　
-				var rw = i.width;　　
-				var rh = i.height;
-			} else {　　 // HTML5 browsers
-				　　
-				var rw = el.naturalWidth;　　
-				var rh = el.naturalHeight;
-			}
 
-			item = {
-				title: el.getAttribute('preview-text'),
-				el: el,
-				src: el.getAttribute('src'),
-				w: rw,
-				h: rh,
-				author: el.getAttribute('data-author'),
-				o: {
-					src: el.getAttribute('src'),
-					w: rw,
-					h: rh,
-				},
-				m: {
-					src: el.getAttribute('src'),
-					w: rw,
-					h: rh,
-				}
-			};
-			items.push(item);
-		}
-		return items
+            if(figureEl.children.length > 1) {
+                // <figcaption> content
+                item.title = figureEl.children[1].innerHTML;
+            }
+
+            if(linkEl.children.length > 0) {
+                // <img> thumbnail element, retrieving thumbnail url
+                item.msrc = linkEl.children[0].getAttribute('src');
+            }
+
+            item.el = figureEl; // save link to element for getThumbBoundsFn
+            items.push(item);
+        }
+        return items;
 	}
 
+    var closest = function closest(el, fn) {
+        return el && ( fn(el) ? el : closest(el.parentNode, fn) );
+    };
 
 	var onThumbnailsClick = function(e) {
 		e = e || window.event;
@@ -82,19 +80,25 @@ function initPhotoSwipeFromDOM(galleryElement, opts = {}, group) {
 
 		var eTarget = e.target || e.srcElement;
 
+        var clickedListItem = closest(eTarget, function(el) {
+            return (el.tagName && el.tagName.toUpperCase() === 'FIGURE');
+        })
 
-		var thumbElements;
+        if(!clickedListItem) {
+            return;
+        }
+
+        var thumbElements;
 		var group = eTarget.getAttribute('preview')
 		if (group) {
-			thumbElements = document.querySelectorAll('img[preview="' + group + '"]')
+			thumbElements = document.querySelectorAll('figure[preview="' + group + '"]')
 		} else {
-			thumbElements = document.querySelectorAll('img.preview')
+			thumbElements = document.querySelectorAll('figure.preview')
 		}
-
 		var index;
 
 		for (var i = 0; i < thumbElements.length; i++) {
-			if (thumbElements[i] === eTarget) {
+			if (thumbElements[i] === clickedListItem) {
 				index = i;
 				break;
 			}
@@ -176,7 +180,7 @@ function initPhotoSwipeFromDOM(galleryElement, opts = {}, group) {
 
 		if (fromURL) {
 			if (options.galleryPIDs) {
-				// parse real index when custom PIDs are used 
+				// parse real index when custom PIDs are used
 				// http://photoswipe.com/documentation/faq.html#custom-pid-in-url
 				for (var j = 0; j < items.length; j++) {
 					if (items[j].pid == index) {
@@ -243,15 +247,15 @@ function initPhotoSwipeFromDOM(galleryElement, opts = {}, group) {
 		});
 
 		gallery.listen('gettingData', function(index, item) {
-			if (useLargeImages) {
-				item.src = item.o.src;
-				item.w = item.o.w;
-				item.h = item.o.h;
-			} else {
-				item.src = item.m.src;
-				item.w = item.m.w;
-				item.h = item.m.h;
-			}
+			// if (useLargeImages) {
+			// 	item.src = item.src;
+			// 	item.w = item.o.w;
+			// 	item.h = item.o.h;
+			// } else {
+			// 	item.src = item.msrc;
+			// 	item.w = item.m.w;
+			// 	item.h = item.m.h;
+			// }
 		});
 
 		gallery.init();
@@ -276,9 +280,9 @@ function initPhotoSwipeFromDOM(galleryElement, opts = {}, group) {
 	galleryElement.classList.add('preview')
 
 	if(group){
-		galleryElement.setAttribute('preview',group)	
+		galleryElement.setAttribute('preview',group)
 	}
-	
+
 
 	// Parse URL and open gallery if it contains #&pid=3&gid=1
 	var hashData = photoswipeParseHash();
